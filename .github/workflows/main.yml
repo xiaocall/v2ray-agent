@@ -1,0 +1,51 @@
+# 工作流程的名称
+name: Sync Upstream Fork
+
+on:
+  # 定时任务：cron表达式，这里代表每天UTC时间零点执行一次
+  # 对于新加坡/北京时间，大约是早上8点
+  schedule:
+    - cron: '0 0 * * *'
+  
+  # 允许在 Actions 页面手动触发此工作流程
+  workflow_dispatch:
+
+jobs:
+  sync:
+    # 使用最新的 Ubuntu 虚拟机环境
+    runs-on: ubuntu-latest
+    steps:
+      # 第一步：检出（Checkout）你的仓库代码
+      - name: Checkout Fork
+        uses: actions/checkout@v4
+        with:
+          # 我们需要一个有推送权限的token来更新你的仓库
+          # 请确保你已在仓库的 "Settings > Secrets and variables > Actions" 中
+          # 创建了一个名为 PAT 的 secret
+          token: ${{ secrets.PAT }}
+          # 获取所有提交历史，这对于 rebase 操作是必需的
+          fetch-depth: 0
+
+      # 第二步：设置上游（原始）仓库地址并拉取最新代码
+      - name: Set up upstream and fetch
+        run: |
+          # ❗️❗️❗️ 重要：请将下面的URL替换成真正的原始仓库地址 ❗️❗️❗️
+          git remote add upstream https://github.com/mack-a/v2ray-agent.git
+          git fetch upstream
+
+      # 第三步：同步你的主分支
+      - name: Sync main branch
+        run: |
+          # 确保你的主分支叫 'main'，如果叫 'master' 或其他名字，请修改
+          git checkout master
+          # 使用 rebase 方式来同步，可以保持提交历史干净
+          git rebase upstream/main
+          # 将同步后的代码强制推送到你自己的仓库
+          git push origin main --force
+
+      # (可选) 如果你还需要同步其他分支，可以复制上面的 "Sync ... branch" 部分
+      # - name: Sync develop branch
+      #  run: |
+      #    git checkout develop
+      #    git rebase upstream/develop
+      #    git push origin develop --force
